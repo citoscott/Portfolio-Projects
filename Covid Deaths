@@ -1,0 +1,91 @@
+/*
+select  *
+from `covid-19-340900.Covid.CovidDeaths`
+where continent is not null
+order by 3,4;
+
+ select  *
+from `covid-19-340900.Covid.CovidVac`
+order by 3,4;
+*/
+
+-- Select Data that we are going to be using 
+select location, date, total_cases, new_cases, total_deaths, population
+from `covid-19-340900.Covid.CovidDeaths`
+order by 1, 2
+
+-- Total Cases vs Total Deaths in Percent 
+select location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as DeathPercent
+from `covid-19-340900.Covid.CovidDeaths`
+where location =  "United States"
+order by 1, 2
+
+-- Total Cases vs Population
+-- Shows percentage of population that contracted covid 
+select location, date, total_cases, population, (total_cases/population)*100 as CovidContractionPercent
+from `covid-19-340900.Covid.CovidDeaths`
+where location =  "United States"
+order by 1, 2
+
+-- Shows Countries with Highest Infection rate compared to population
+select location, population, MAX(total_cases) as HighestInfectionCount, MAX((total_cases/population))*100 as CovidContractionCount 
+from `covid-19-340900.Covid.CovidDeaths`
+group by location, population
+order by CovidContractionCount desc
+
+-- Shows Countries with Highest Death Count per population
+select location, max(total_deaths) as TotalDeathCount
+from `covid-19-340900.Covid.CovidDeaths`
+where continent is not null 
+group by location 
+order by TotalDeathCount desc 
+
+-- Shows Continent with Highest Death Count per population
+select continent, max(total_deaths) as TotalDeathCount
+from `covid-19-340900.Covid.CovidDeaths`
+where continent is not null 
+group by continent 
+order by TotalDeathCount desc 
+
+-- Shows World Death Percentage
+select SUM(new_cases) as total_cases, sum(new_deaths) as total_deaths, sum(new_deaths)/sum(new_cases)* 100
+from `covid-19-340900.Covid.CovidDeaths`
+where continent is not null 
+
+
+-- Creating a Temp Table 
+Drop Table if exists #PercentPopulationVaccinated
+Create Table #PercentPopulationVaccinated
+(
+    Continent nvarchar(255),
+    Location nvarchar(255),
+    Date datetime,
+    Population numeric,
+    New_Vaccination numeric,
+    RollingVacCount numeric
+)
+
+INSERT INTO #PercentPopulationVaccinated
+-- Looking at Total Population vs Vaccination
+Select death.continent, death.location, death.date, death.population, vac.new_vaccinations, 
+    sum(new_vaccinations) OVER (partition by death.location order by death.location, death.date) as RollingVacCount
+from `covid-19-340900.Covid.CovidDeaths` as death 
+join `covid-19-340900.Covid.CovidVac` as vac 
+    on death.location = vac.location
+    and death.date = vac.date
+where death.continent is not null 
+
+select *, RollingVacCount/Population*100
+ from #PercentPopulationVaccinated
+*/
+
+-- Creating a View to store data for Visuization
+Create View PercentPopulationVaccinated as 
+Select death.continent, death.location, death.date, death.population, vac.new_vaccinations, 
+    sum(new_vaccinations) OVER (partition by death.location order by death.location, death.date) as RollingVacCount
+from `covid-19-340900.Covid.CovidDeaths` as death 
+join `covid-19-340900.Covid.CovidVac` as vac 
+    on death.location = vac.location
+    and death.date = vac.date
+where death.continent is not null 
+
